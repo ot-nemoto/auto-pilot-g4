@@ -1,0 +1,53 @@
+{
+  "name": "auto-pilot-g4",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
+  "features": {
+    // Node.js 22（CDK CLI用）
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "22"
+    },
+    // Python 3.12（Lambda・コンテナ開発用）
+    "ghcr.io/devcontainers/features/python:1": {
+      "version": "3.12"
+    },
+    // Docker-in-Docker（runnerコンテナのビルド用）
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+      "version": "latest",
+      "dockerDashComposeVersion": "v2"
+    },
+    // AWS CLI v2
+    "ghcr.io/devcontainers/features/aws-cli:1": {}
+  },
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+  "remoteEnv": {
+    "AWS_DEFAULT_REGION": "ap-northeast-1"
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        // TypeScript / CDK
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        // Python
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "charliermarsh.ruff",
+        // AWS
+        "amazonwebservices.aws-toolkit-vscode",
+        // その他
+        "github.vscode-github-actions",
+        "bierner.markdown-mermaid"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "editor.formatOnSave": true,
+        "[python]": {
+          "editor.defaultFormatter": "charliermarsh.ruff"
+        },
+        "[typescript]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode"
+        }
+      }
+    }
+  }
+}
