@@ -13,6 +13,7 @@ pip install playwright
 playwright install chromium --with-deps
 
 echo "=== Ollama (Gemma4 ローカル推論用) ==="
+sudo apt-get install -y zstd
 curl -fsSL https://ollama.com/install.sh | sh
 
 echo "=== 完了 ==="
