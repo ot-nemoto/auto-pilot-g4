@@ -19,6 +19,7 @@
     "ghcr.io/devcontainers/features/aws-cli:1": {}
   },
   "postCreateCommand": "bash .devcontainer/post-create.sh",
+  "postStartCommand": "pgrep -x ollama > /dev/null || ollama serve > /tmp/ollama.log 2>&1 &",
   "remoteEnv": {
     "AWS_DEFAULT_REGION": "ap-northeast-1"
   },
