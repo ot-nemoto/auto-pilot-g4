@@ -33,4 +33,4 @@ sleep 3
 echo "=== 完了 ==="
 echo "次のステップ:"
 echo "  CDK:     cd infra && npm install"
-echo "  Ollama:  ollama pull gemma3  # gemma4リリース後は gemma4 に変更"
+echo "  Ollama:  ollama pull gemma4:e4b"
