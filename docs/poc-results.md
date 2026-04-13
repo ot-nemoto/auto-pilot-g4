@@ -95,7 +95,17 @@ async with async_playwright() as p:
 python poc/test_google.py
 ```
 
-**結果**: 未実施（実行中）
+**結果**: ✅ 成功
+
+```
+➡️  google.com にアクセス中...
+✅ 実際のタイトル: 'Google'
+✅ 期待されるタイトル: 'Google'
+
+🎉 テスト成功: ページタイトルは 'Google' でした。
+```
+
+Gemma4:e4b が生成したコードをベースとしたPlaywrightテストが正常に動作することを確認。
 
 ---
 
