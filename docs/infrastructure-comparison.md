@@ -35,6 +35,8 @@ xychart-beta
     line "AWS On-demand" [0, 681600, 1363200, 2044800, 2726400, 3408000, 4089600, 4771200]
 ```
 
+> **凡例（上から順）:** 1本目: Mac mini ／ 2本目: Vast.ai ／ 3本目: AWS Spot ／ 4本目: RunPod ／ 5本目: AWS On-demand（グラフ外に突出）
+
 ---
 
 ## Mac miniとの損益分岐点
