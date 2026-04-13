@@ -24,6 +24,7 @@
 ## 総コスト推移（累計）
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {'xyChart': {'plotColorPalette': '#1f77b4,#ff7f0e,#d62728,#2ca02c,#9467bd'}}}}%%
 xychart-beta
     title "総コスト比較（円）"
     x-axis "経過月数" [0, 12, 24, 36, 48, 60, 72, 84]
@@ -35,7 +36,7 @@ xychart-beta
     line "AWS On-demand" [0, 681600, 1363200, 2044800, 2726400, 3408000, 4089600, 4771200]
 ```
 
-> **凡例（上から順）:** 1本目: Mac mini ／ 2本目: Vast.ai ／ 3本目: AWS Spot ／ 4本目: RunPod ／ 5本目: AWS On-demand（グラフ外に突出）
+> **凡例:** 🔵 Mac mini ／ 🟠 Vast.ai ／ 🔴 AWS Spot ／ 🟢 RunPod ／ 🟣 AWS On-demand（グラフ外に突出）
 
 ---
 
