@@ -20,8 +20,8 @@
 | **AWS Spot** (g4dn.xlarge) | T4 | ¥1,200 ※ | なし | △ 中断リスク |
 | **Vast.ai** | RTX 4090 | ¥1,500 ※ | なし | △ ホスト次第 |
 | **RunPod Community** | RTX 3090 | ¥1,650 ※ | なし | ○ |
-| **AWS On-demand** (g4dn.xlarge) | T4 | ¥3,950 ※ | なし | ✅ 安定 |
-| **Mac mini M4 24GB** | Metal | ¥4,533 ※※ | ¥148,800 | ✅ 安定 |
+| **AWS On-demand** (g4dn.xlarge) | T4 | ¥3,950 ※ | なし | ◎ |
+| **Mac mini M4 24GB** | Metal | ¥4,533 ※※ | ¥148,800 | ◎ |
 
 ※ 1テスト10分 × 月300回 = 50h/月で算出（$0.16〜0.53/hr × 50h × ¥150）  
 ※※ 36ヶ月償却（¥148,800 ÷ 36 + 電気代¥200）。使用頻度に関わらず固定
@@ -30,11 +30,11 @@
 
 | プラン | GPU | 月額 | 安定性 |
 |-------|-----|------|-------|
-| **Mac mini M4 24GB** | Metal | ¥4,533 | ✅ 安定 |
+| **Mac mini M4 24GB** | Metal | ¥4,533 | ◎ |
 | **AWS Spot** (g4dn.xlarge) | T4 | ¥17,280 | △ 中断リスク |
 | **Vast.ai** | RTX 4090 | ¥21,600 | △ ホスト次第 |
 | **RunPod Community** | RTX 3090 | ¥23,760 | ○ |
-| **AWS On-demand** (g4dn.xlarge) | T4 | ¥56,800 | ✅ 安定 |
+| **AWS On-demand** (g4dn.xlarge) | T4 | ¥56,800 | ◎ |
 
 常時起動ではMac miniが圧倒的に安い。クラウドを常時起動することは基本的に想定しない。
 
