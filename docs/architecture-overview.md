@@ -12,38 +12,19 @@
 
 ユーザー案をベースに、実用性・コストのバランスが最も優れた構成。
 
-```
-[外部クライアント]
-      │ POST /test  (prompt, target_url, etc.)
-      ▼
-[API Gateway]
-      │
-      ▼
-[Lambda: オーケストレーター]
-  ・入力バリデーション
-  ・ECS RunTask 呼び出し
-  ・実行IDをクライアントへ返却
-      │
-      ▼
-[ECS Fargate Task] ─────────────────────────────────────────────┐
-  ┌─────────────────────────────────────────────────────────┐   │
-  │  Container: auto-pilot-runner                           │   │
-  │  ┌──────────────┐     ┌───────────────────────────┐    │   │
-  │  │   Gemma4     │────▶│  Playwright Test Runner    │    │   │
-  │  │  (LLM推論)   │     │  (Chromium headless)       │    │   │
-  │  └──────────────┘     └───────────────────────────┘    │   │
-  │  ① promptを受け取り                                     │   │
-  │  ② テストシナリオ生成                                   │   │
-  │  ③ Playwrightコード実行                                 │   │
-  │  ④ 結果・スクリーンショット取得                         │   │
-  └─────────────────────────────────────────────────────────┘   │
-      │                                                          │
-      ├─── テスト結果 (JSON) ──▶ [S3]                           │
-      ├─── スクリーンショット ──▶ [S3]                           │
-      ├─── ログ ────────────────▶ [CloudWatch Logs]              │
-      └─── 完了通知 ────────────▶ [SNS / Webhook]               │
-                                                                  │
-      タスク終了（自動）◀────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    Client([外部クライアント]) -->|"POST /test\nprompt, target_url..."| APIGW[API Gateway]
+    APIGW --> Lambda["Lambda\nオーケストレーター\n・入力バリデーション\n・ECS RunTask 呼び出し\n・実行IDを返却"]
+    Lambda -->|ECS RunTask| ECSTask
+
+    subgraph ECSTask["ECS Fargate Task: auto-pilot-runner"]
+        Gemma4["Gemma4\n(LLM推論)"] -->|"②テストシナリオ生成"| PW["Playwright\n(Chromium headless)"]
+    end
+
+    ECSTask -->|"テスト結果 (JSON)\nスクリーンショット"| S3[S3]
+    ECSTask --> CW[CloudWatch Logs]
+    ECSTask -->|完了通知| SNS["SNS / Webhook"]
 ```
 
 **メリット**
@@ -59,19 +40,11 @@
 
 ### 案B: SQS キュードリブン ECS（非同期バッチ向け）
 
-```
-[外部クライアント]
-      │ メッセージ送信
-      ▼
-[SQS Queue]
-      │ メッセージ到着
-      ▼
-[EventBridge Pipe / Lambda]
-  ・SQSメッセージを受信
-  ・ECS RunTask 呼び出し
-      │
-      ▼
-[ECS Fargate Task]（案Aと同じ構成）
+```mermaid
+flowchart TD
+    Client([外部クライアント]) -->|メッセージ送信| SQS[SQS Queue]
+    SQS -->|メッセージ到着| Bridge["EventBridge Pipe / Lambda\n・SQSメッセージを受信\n・ECS RunTask 呼び出し"]
+    Bridge --> ECS["ECS Fargate Task\n（案Aと同じ構成）"]
 ```
 
 **案Aとの違い**
@@ -83,18 +56,15 @@
 
 ### 案C: Step Functions + ECS（ワークフロー管理向け）
 
-```
-[API Gateway] → [Lambda] → [Step Functions State Machine]
-                                │
-                    ┌───────────┼───────────────────┐
-                    ▼           ▼                   ▼
-              [ECS Task:    [ECS Task:         [ECS Task:
-               ログイン]     フォーム入力]      購入フロー]
-                    └───────────┴───────────────────┘
-                                │
-                          [結果集約 Lambda]
-                                │
-                               [S3 / 通知]
+```mermaid
+flowchart TD
+    APIGW[API Gateway] --> Lambda[Lambda]
+    Lambda --> SF["Step Functions\nState Machine"]
+    SF --> T1["ECS Task\nログイン"]
+    SF --> T2["ECS Task\nフォーム入力"]
+    SF --> T3["ECS Task\n購入フロー"]
+    T1 & T2 & T3 --> Agg["結果集約 Lambda"]
+    Agg --> Out["S3 / 通知"]
 ```
 
 **メリット**
@@ -110,13 +80,15 @@
 
 ### 案D: EC2 GPU インスタンス常時起動（Gemma4フル活用）
 
-```
-[API Gateway] → [Lambda] → [SQS] → [EC2 g4dn/g5 インスタンス]
-                                         │
-                                    [常駐プロセス]
-                                    ・Gemma4 (GPU推論)
-                                    ・Playwright
-                                    ・キュー監視ループ
+```mermaid
+flowchart LR
+    APIGW[API Gateway] --> Lambda[Lambda]
+    Lambda --> SQS[SQS]
+    SQS --> EC2Proc
+
+    subgraph EC2["EC2 g4dn/g5 インスタンス"]
+        EC2Proc["常駐プロセス\n・Gemma4 (GPU推論)\n・Playwright\n・キュー監視ループ"]
+    end
 ```
 
 **メリット**
@@ -221,41 +193,23 @@ auto-pilot-runner (Docker Image on ECR)
 
 ## AWSリソース構成
 
-```
-VPC
-├── Private Subnet（ECS Task 実行）
-└── Public Subnet（NAT Gateway）
+```mermaid
+flowchart TD
+    APIGW["API Gateway\nPOST /tests"] -->|invoke| OrcLambda["Lambda\nauto-pilot-orchestrator\n・ECS RunTask 呼び出し\n・実行IDをレスポンス返却"]
+    OrcLambda -->|ECS RunTask| TaskDef
 
-ECS
-├── Cluster: auto-pilot
-└── Task Definition: auto-pilot-runner
-    ├── CPU: 4 vCPU（Gemma4 CPU推論の場合は8以上推奨）
-    ├── Memory: 16GB（Gemma4 8Bモデルの場合）
-    └── Container: auto-pilot-runner
+    subgraph VPC["VPC"]
+        subgraph ECSCluster["ECS Cluster: auto-pilot"]
+            TaskDef["Task Definition\nauto-pilot-runner\nCPU: 4vCPU / Mem: 16GB"]
+        end
+        PrivSub["Private Subnet\n(ECS Task 実行)"]
+        PubSub["Public Subnet\n(NAT Gateway)"]
+    end
 
-ECR
-└── auto-pilot-runner（コンテナイメージ）
-
-S3
-└── auto-pilot-results（テスト結果格納）
-
-CloudWatch Logs
-└── /ecs/auto-pilot-runner
-
-API Gateway
-└── POST /tests → Lambda（オーケストレーター）
-
-Lambda
-└── auto-pilot-orchestrator
-    ├── ECS RunTask 呼び出し
-    └── 実行IDをレスポンス返却
-
-SNS
-└── auto-pilot-notifications（完了通知）
-
-IAM
-├── ECS Task Role（S3書き込み・SNS発行）
-└── Lambda Role（ECS RunTask・ログ書き込み）
+    ECR["ECR\nauto-pilot-runner"] -.->|image pull| TaskDef
+    TaskDef --> S3["S3\nauto-pilot-results"]
+    TaskDef --> CW["CloudWatch Logs\n/ecs/auto-pilot-runner"]
+    TaskDef -->|完了通知| SNS["SNS\nauto-pilot-notifications"]
 ```
 
 ---
