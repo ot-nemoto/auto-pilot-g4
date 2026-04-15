@@ -2,8 +2,8 @@
 
 ## テスト実行の流れ
 
-1. テスト対象リポジトリに `docs/testing.md` と `docs/e2e-scenarios.md` を用意する
-2. API エンドポイントにリポジトリ URL を POST する
+1. シナリオファイル（`e2e-scenarios.md`）を用意する
+2. API エンドポイントにリポジトリ URL・テスト対象 URL を POST する
 3. 結果を S3 から取得する（または通知を待つ）
 
 ---
@@ -19,13 +19,17 @@ curl -X POST https://<api-endpoint>/prod/tests \
   -H "Content-Type: application/json" \
   -H "x-api-key: <api-key>" \
   -d '{
-    "repo_url": "https://github.com/ot-nemoto/eval-hub"
+    "repo_url": "https://github.com/ot-nemoto/eval-hub",
+    "target_url": "https://eval-hub.example.com"
   }'
 ```
 
-| フィールド | 型 | 必須 | 説明 |
-|---|---|:---:|---|
-| `repo_url` | string | ✅ | テスト仕様を含む GitHub リポジトリ URL |
+| フィールド | 型 | 必須 | デフォルト | 説明 |
+|---|---|:---:|---|---|
+| `repo_url` | string | ✅ | — | シナリオファイルを含むリポジトリ URL |
+| `target_url` | string | ✅ | — | テスト対象サービスの URL |
+| `scenarios_path` | string | | `docs/e2e-scenarios.md` | シナリオファイルのパス |
+| `testing_path` | string | | — | テスト方針ファイルのパス（省略可） |
 
 **レスポンス**
 
@@ -39,27 +43,84 @@ curl -X POST https://<api-endpoint>/prod/tests \
 
 ---
 
-## テスト仕様の書き方
+## リポジトリの構成パターン
 
-### docs/testing.md（テスト方針）
+シナリオファイルはアプリリポジトリに置く必要はなく、用途に応じて自由に構成できる。
 
-テスト対象サービスの情報、前提条件、注意事項を記載する。
+### パターン 1: アプリリポジトリにシナリオを置く
 
-```markdown
-## テスト対象
-https://eval-hub.example.com
-
-## 前提条件
-- テストユーザー: test@example.com / password123
-- テスト前のデータリセットは不要
-
-## 注意事項
-- 本番データを変更しないこと
+```bash
+curl -d '{
+  "repo_url": "https://github.com/ot-nemoto/eval-hub",
+  "target_url": "https://eval-hub.example.com"
+}'
 ```
 
-### docs/e2e-scenarios.md（テストシナリオ）
+```
+eval-hub/
+└── docs/
+    ├── e2e-scenarios.md   ← デフォルトパスで読み込まれる
+    └── testing.md
+```
 
-自然言語でシナリオを記述する。見出し（`##`）で各シナリオを区切る。
+### パターン 2: シナリオ専用リポジトリで一元管理
+
+複数サービスの E2E テストを 1 つのリポジトリにまとめて管理できる。
+
+```bash
+# eval-hub のテスト
+curl -d '{
+  "repo_url": "https://github.com/ot-nemoto/e2e-scenarios",
+  "target_url": "https://eval-hub.example.com",
+  "scenarios_path": "eval-hub/e2e-scenarios.md",
+  "testing_path": "eval-hub/testing.md"
+}'
+
+# another-service のテスト（同じリポジトリから）
+curl -d '{
+  "repo_url": "https://github.com/ot-nemoto/e2e-scenarios",
+  "target_url": "https://another-service.example.com",
+  "scenarios_path": "another-service/e2e-scenarios.md"
+}'
+```
+
+```
+e2e-scenarios/              ← シナリオ専用リポジトリ
+├── eval-hub/
+│   ├── e2e-scenarios.md
+│   └── testing.md
+├── another-service/
+│   └── e2e-scenarios.md
+└── policies/
+    └── common.md
+```
+
+### パターン 3: 環境ごとにテスト対象 URL を切り替える
+
+同じシナリオをステージング・本番で使い回せる。
+
+```bash
+# ステージング
+curl -d '{
+  "repo_url": "https://github.com/ot-nemoto/eval-hub",
+  "target_url": "https://staging.eval-hub.example.com"
+}'
+
+# 本番
+curl -d '{
+  "repo_url": "https://github.com/ot-nemoto/eval-hub",
+  "target_url": "https://eval-hub.example.com"
+}'
+```
+
+---
+
+## テスト仕様の書き方
+
+### e2e-scenarios.md（テストシナリオ）
+
+自然言語でシナリオを記述する。見出し（`##`）で各シナリオを区切る。  
+`target_url` はリクエストパラメータで指定するため、ファイル内への記載は不要。
 
 ```markdown
 ## シナリオ 1: トップページの表示確認
@@ -72,6 +133,19 @@ https://eval-hub.example.com
 ## シナリオ 3: ログアウト
 ログイン状態でヘッダーのユーザーアイコンをクリックし、ログアウトを選択。
 トップページに戻ることを確認する。
+```
+
+### testing.md（テスト方針）— 省略可
+
+前提条件・注意事項・認証情報の扱いなどを記載する。省略した場合はシナリオのみで実行される。
+
+```markdown
+## 前提条件
+- テストユーザー: test@example.com / password123
+- テスト前のデータリセットは不要
+
+## 注意事項
+- 本番データを変更しないこと
 ```
 
 ---
@@ -96,6 +170,8 @@ s3://auto-pilot-g4-results/{execution_id}/
 {
   "execution_id": "exec-20260415-143022",
   "repo_url": "https://github.com/ot-nemoto/eval-hub",
+  "target_url": "https://eval-hub.example.com",
+  "scenarios_path": "docs/e2e-scenarios.md",
   "status": "passed",
   "started_at": "2026-04-15T14:30:22Z",
   "finished_at": "2026-04-15T14:45:10Z",
@@ -136,6 +212,7 @@ SNS または Slack Webhook で完了通知を受け取れる。
   "execution_id": "exec-20260415-143022",
   "status": "passed",
   "repo_url": "https://github.com/ot-nemoto/eval-hub",
+  "target_url": "https://eval-hub.example.com",
   "result_url": "https://auto-pilot-g4-results.s3.amazonaws.com/exec-20260415-143022/result.json"
 }
 ```

@@ -5,13 +5,15 @@
 ### FR-01: テスト実行リクエスト受付
 
 - API エンドポイント（POST /tests）でテスト実行を受け付ける
-- リクエストボディに GitHub リポジトリ URL を指定する
 - レスポンスとして実行 ID（`execution_id`）を即時返却する
 
 ```json
 // リクエスト
 {
-  "repo_url": "https://github.com/ot-nemoto/eval-hub"
+  "repo_url": "https://github.com/ot-nemoto/eval-hub",  // 必須
+  "target_url": "https://eval-hub.example.com",          // 必須
+  "scenarios_path": "docs/e2e-scenarios.md",              // 省略可（デフォルト値）
+  "testing_path": "docs/testing.md"                       // 省略可
 }
 
 // レスポンス
@@ -21,17 +23,25 @@
 }
 ```
 
+| フィールド | 必須 | デフォルト | 説明 |
+|---|:---:|---|---|
+| `repo_url` | ✅ | — | シナリオファイルを含むリポジトリ URL |
+| `target_url` | ✅ | — | テスト対象サービスの URL |
+| `scenarios_path` | | `docs/e2e-scenarios.md` | シナリオファイルのパス |
+| `testing_path` | | — | テスト方針ファイルのパス |
+
 ### FR-02: テスト仕様の読み込み
 
-- 指定された GitHub リポジトリから以下のファイルを取得する
-  - `docs/testing.md`：テスト方針・前提条件・注意事項
-  - `docs/e2e-scenarios.md`：実行するテストシナリオ（自然言語）
-- ファイルが存在しない場合はエラーを返す
+- 指定されたリポジトリから `scenarios_path` のファイルを取得する
+- `testing_path` が指定された場合はテスト方針ファイルも取得する
+- `scenarios_path` のファイルが存在しない場合はエラーを返す
+- リポジトリはアプリリポジトリ・シナリオ専用リポジトリのどちらでも可
 
 ### FR-03: テストシナリオの実行
 
-- Gemma4 が `testing.md` と `e2e-scenarios.md` の内容を解釈する
-- PlaywrightMCP を通じて Chromium を操作しブラウザテストを実行する
+- Gemma4 がシナリオファイルの内容（および方針ファイルがあればその内容）を解釈する
+- `target_url` を起点としてブラウザテストを実行する
+- PlaywrightMCP を通じて Chromium を操作する
 - ツール呼び出しが失敗した場合、Gemma4 が原因を分析して再試行する（最大 3 回）
 
 ### FR-04: テスト結果の保存
@@ -67,7 +77,7 @@ s3://auto-pilot-g4-results/{execution_id}/
 ### NFR-03: 再現性
 
 - Docker コンテナで実行環境を統一する
-- 同じシナリオを実行した場合、同等の結果が得られること
+- 同じシナリオ・同じ `target_url` で実行した場合、同等の結果が得られること
 
 ### NFR-04: セキュリティ
 
@@ -84,14 +94,25 @@ s3://auto-pilot-g4-results/{execution_id}/
 
 ## テスト仕様フォーマット
 
-### docs/testing.md（テスト方針）
+### e2e-scenarios.md（テストシナリオ）
 
-テスト対象サービスの概要、テスト実行前の前提条件、認証情報の扱いなどを記載する。
+各シナリオを自然言語で記述する。見出し（`##`）で区切る。  
+テスト対象 URL は `target_url` パラメータで渡されるため、ファイル内への記載は不要。
 
 ```markdown
-## テスト対象
-https://example.com
+## シナリオ 1: ログイン確認
+ログインページにアクセスし、メールアドレスとパスワードを入力してログインできることを確認する。
+ログイン後、ダッシュボードページが表示されることを確認する。
 
+## シナリオ 2: 商品一覧表示
+ログイン後、商品一覧ページを開き、商品が 1 件以上表示されることを確認する。
+```
+
+### testing.md（テスト方針）— 省略可
+
+前提条件・認証情報の扱い・注意事項を記載する。省略した場合はシナリオのみで実行される。
+
+```markdown
 ## 前提条件
 - テストユーザー: test@example.com / password123
 - テスト実行前にデータのリセットは不要
@@ -100,16 +121,26 @@ https://example.com
 - 購入フローは実際に決済しないこと
 ```
 
-### docs/e2e-scenarios.md（テストシナリオ）
+---
 
-各シナリオを自然言語で記述する。Gemma4 が解釈して Playwright 操作に変換する。
+## リポジトリ構成パターン
 
-```markdown
-## シナリオ 1: ログイン確認
-トップページにアクセスし、ログインボタンをクリック。
-メールアドレスとパスワードを入力してログインできることを確認する。
-ログイン後、ダッシュボードページが表示されることを確認する。
+シナリオファイルの置き場所は自由。代表的なパターンは以下の通り。
 
-## シナリオ 2: 商品一覧表示
-ログイン後、商品一覧ページを開き、商品が 1 件以上表示されることを確認する。
+```
+# パターン 1: アプリリポジトリにシナリオを置く
+my-app/
+└── docs/
+    ├── e2e-scenarios.md
+    └── testing.md
+
+# パターン 2: シナリオ専用リポジトリで複数サービスを一元管理
+e2e-scenarios/
+├── my-app/
+│   ├── e2e-scenarios.md
+│   └── testing.md
+├── another-service/
+│   └── e2e-scenarios.md
+└── policies/
+    └── common.md
 ```
